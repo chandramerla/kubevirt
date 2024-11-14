@@ -46,7 +46,7 @@ const (
 	insecureArg          = "--insecure"
 )
 
-var _ = Describe("[sig-storage][Serial][virtctl]ImageUpload", decorators.SigStorage, Serial, func() {
+var _ = Describe("[sig-storage][Serial][virtctl][test_id:imageupload]ImageUpload", decorators.SigStorage, Serial, func() {
 	var kubectlCmd *exec.Cmd
 
 	pvcSize := "100Mi"
@@ -59,6 +59,7 @@ var _ = Describe("[sig-storage][Serial][virtctl]ImageUpload", decorators.SigStor
 
 	BeforeEach(func() {
 		By("Getting the disk image provider pod")
+		fmt.Println("kubevirtInstallnamespace.....", flags.KubeVirtInstallNamespace)
 		pods, err := virtClient.CoreV1().Pods(flags.KubeVirtInstallNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "kubevirt.io=disks-images-provider"})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pods.Items).ToNot(BeEmpty())
@@ -70,6 +71,7 @@ var _ = Describe("[sig-storage][Serial][virtctl]ImageUpload", decorators.SigStor
 		config, err := virtClient.CdiClient().CdiV1beta1().CDIConfigs().Get(context.Background(), "config", metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		if config.Status.UploadProxyURL == nil {
+
 			By("Setting up port forwarding")
 			portMapping := fmt.Sprintf("%d:%d", localUploadProxyPort, uploadProxyPort)
 			_, kubectlCmd, err = clientcmd.CreateCommandWithNS(flags.ContainerizedDataImporterNamespace, "kubectl", "port-forward", uploadProxyService, portMapping)
@@ -146,7 +148,7 @@ var _ = Describe("[sig-storage][Serial][virtctl]ImageUpload", decorators.SigStor
 				Expect(err).ToNot(HaveOccurred())
 			}
 		},
-			Entry("DataVolume", "dv", "alpine-dv-"+rand.String(12), validateDataVolume, true),
+			Entry("DataVolume[test_id:debug1]", "dv", "alpine-dv-"+rand.String(12), validateDataVolume, true),
 			Entry("PVC", "pvc", "alpine-pvc-"+rand.String(12), validatePVC, false),
 		)
 	})
@@ -191,12 +193,15 @@ var _ = Describe("[sig-storage][Serial][virtctl]ImageUpload", decorators.SigStor
 				"--storage-class", storageClass,
 				"--access-mode", "ReadWriteOnce",
 				"--force-bind",
+
 				insecureArg)
+
+			fmt.Println("******virtctlCmd***", virtctlCmd())
 
 			Expect(virtctlCmd()).To(Succeed())
 			validateFunc(targetName)
 		},
-			Entry("DataVolume", "dv", "alpine-dv-"+rand.String(12), validateDataVolumeForceBind),
+			Entry("[test_id:debug2]DataVolume", "dv", "alpine-dv-"+rand.String(12), validateDataVolumeForceBind),
 			Entry("PVC", "pvc", "alpine-pvc-"+rand.String(12), validatePVCForceBind),
 		)
 	})

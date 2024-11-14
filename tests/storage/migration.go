@@ -64,7 +64,7 @@ import (
 	"kubevirt.io/kubevirt/tests/testsuite"
 )
 
-var _ = SIGDescribe("Volumes update with migration", decorators.RequiresTwoSchedulableNodes, decorators.VMLiveUpdateRolloutStrategy, Serial, func() {
+var _ = SIGDescribe("[test_id:storage-migration]Volumes update with migration", decorators.RequiresTwoSchedulableNodes, decorators.VMLiveUpdateRolloutStrategy, Serial, func() {
 	var virtClient kubecli.KubevirtClient
 	BeforeEach(func() {
 		checks.SkipIfMigrationIsNotPossible()
@@ -161,7 +161,7 @@ var _ = SIGDescribe("Volumes update with migration", decorators.RequiresTwoSched
 			sc, exist := libstorage.GetRWOFileSystemStorageClass()
 			Expect(exist).To(BeTrue())
 			dv := libdv.NewDataVolume(
-				libdv.WithRegistryURLSource(cd.DataVolumeImportUrlForContainerDisk(cd.ContainerDiskCirros)),
+				libdv.WithRegistryURLSource(cd.DataVolumeImportUrlForContainerDisk(cd.ContainerDiskAlpine)),
 				libdv.WithStorage(libdv.StorageWithStorageClass(sc),
 					libdv.StorageWithVolumeSize(size),
 				),
@@ -406,7 +406,7 @@ var _ = SIGDescribe("Volumes update with migration", decorators.RequiresTwoSched
 			srcPVC := "src-" + rand.String(5)
 			libstorage.CreateFSPVC(srcPVC, ns, size, nil)
 			libstorage.CreateFSPVC(destPVC, ns, size, nil)
-			vmi := libvmifact.NewCirros(
+			vmi := libvmifact.NewAlpine(
 				libvmi.WithNamespace(ns),
 				libvmi.WithInterface(libvmi.InterfaceDeviceWithMasqueradeBinding()),
 				libvmi.WithNetwork(virtv1.DefaultPodNetwork()),
@@ -642,7 +642,7 @@ var _ = SIGDescribe("Volumes update with migration", decorators.RequiresTwoSched
 			const volName = "vol0"
 			ns := testsuite.GetTestNamespace(nil)
 			dv := createBlankDV(virtClient, ns, "1Gi")
-			vmi := libvmifact.NewCirros(
+			vmi := libvmifact.NewAlpine(
 				libvmi.WithNamespace(ns),
 				libvmi.WithInterface(libvmi.InterfaceDeviceWithMasqueradeBinding()),
 				libvmi.WithNetwork(virtv1.DefaultPodNetwork()),
