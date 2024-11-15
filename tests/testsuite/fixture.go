@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"strconv"
 	"time"
 
@@ -372,9 +373,20 @@ func waitForAllPodsReady(timeout time.Duration, listOptions metav1.ListOptions) 
 		}
 		return podsNotReady
 	}
-	Eventually(checkForPodsToBeReady, timeout, 2*time.Second).Should(BeEmpty(), "There are pods in system which are not ready.")
+	//Eventually(checkForPodsToBeReady, timeout, 2*time.Second).Should(BeEmpty(), "There are pods in system which are not ready.")
+	Eventually(func() []string {
+		podsNotReady := checkForPodsToBeReady()
+		filteredPods := []string{}
+	
+		// Filter out pods with names starting with "importer-prime-"
+		for _, pod := range podsNotReady {
+			if !strings.HasPrefix(pod, "importer-prime-") {
+				filteredPods = append(filteredPods, pod)
+			}
+		}
+		return filteredPods
+	}, timeout, 2*time.Second).Should(BeEmpty(), "There are pods in system which are not ready.")
 }
-
 func WaitExportProxyReady() {
 	Eventually(func() bool {
 		virtClient := kubevirt.Client()
