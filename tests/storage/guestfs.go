@@ -137,7 +137,7 @@ var _ = SIGDescribe("[rfe_id:6364][test_id:guestfs]Guestfs", Label("guestfs"), f
 		})
 
 		// libguestfs-test-tool verifies the setup to run libguestfs-tools
-		It("Should successfully run libguestfs-test-tool", Label("guestfs", "FileSystem"), func() {
+		It("[test_id:guestfsfail1]Should successfully run libguestfs-test-tool", Label("guestfs", "FileSystem"), func() {
 			pvcClaim = "pvc-verify"
 			libstorage.CreateFSPVC(pvcClaim, ns, "500Mi", nil)
 			runGuestfsOnPVC(f, pvcClaim, ns)

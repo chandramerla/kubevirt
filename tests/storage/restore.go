@@ -256,12 +256,14 @@ var _ = SIGDescribe("[test_id:restore]VirtualMachineRestore Tests", func() {
 			libvmi.WithCloudInitNoCloud(libvmifact.WithDummyCloudForFastBoot()),
 		}
 		opts = append(defaultOpts, opts...)
+
+		imageUrl := cd.DataVolumeImportUrlForContainerDisk(cd.ContainerDiskFedoraTestTooling)
 		dv := libdv.NewDataVolume(
-			libdv.WithRegistryURLSource(cd.DataVolumeImportUrlForContainerDisk(containerDisk)),
+			libdv.WithRegistryURLSource(imageUrl),
 			libdv.WithNamespace(testsuite.GetTestNamespace(nil)),
 			libdv.WithStorage(
 				libdv.StorageWithStorageClass(storageClass),
-				libdv.StorageWithVolumeSize(cd.ContainerDiskSizeBySourceURL(cd.DataVolumeImportUrlForContainerDisk(containerDisk))),
+				libdv.StorageWithVolumeSize(cd.FedoraVolumeSize),
 			),
 		)
 		return libvmi.NewVirtualMachine(
@@ -1109,11 +1111,11 @@ var _ = SIGDescribe("[test_id:restore]VirtualMachineRestore Tests", func() {
 			// will change this behavior it will fail.
 			DescribeTable("should restore a vm with restore size bigger then PVC size", func(restoreToNewVM bool) {
 				vm = createVMWithCloudInit(cd.ContainerDiskFedoraTestTooling, snapshotStorageClass)
-				quantity, err := resource.ParseQuantity("1528Mi")
+				quantity, err := resource.ParseQuantity("5320Mi")
 				Expect(err).ToNot(HaveOccurred())
 				vm.Spec.DataVolumeTemplates[0].Spec.Storage.Resources.Requests["storage"] = quantity
 				vm, vmi = createAndStartVM(vm)
-				expectedCapacity, err := resource.ParseQuantity("2Gi")
+				expectedCapacity, err := resource.ParseQuantity("6Gi")
 				Expect(err).ToNot(HaveOccurred())
 				pvc, err := virtClient.CoreV1().PersistentVolumeClaims(vm.Namespace).Get(context.Background(), vm.Spec.DataVolumeTemplates[0].Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
@@ -1136,11 +1138,11 @@ var _ = SIGDescribe("[test_id:restore]VirtualMachineRestore Tests", func() {
 				Expect(pvc.Spec.Resources.Requests["storage"]).To(Equal(expectedCapacity))
 
 			},
-				Entry("to the same VM", false),
-				Entry("to a new VM", true),
+				Entry("[test_id:restorefail1]to the same VM", false),
+				Entry("[test_id:restorefail2]to a new VM", true),
 			)
 
-			DescribeTable("should restore a vm that boots from a datavolumetemplate", func(restoreToNewVM bool) {
+			DescribeTable("[test_id:restorefail3]should restore a vm that boots from a datavolumetemplate", func(restoreToNewVM bool) {
 				vm, vmi = createAndStartVM(createVMWithCloudInit(cd.ContainerDiskFedoraTestTooling, snapshotStorageClass))
 
 				originalDVName := vm.Spec.DataVolumeTemplates[0].Name
@@ -1188,11 +1190,15 @@ var _ = SIGDescribe("[test_id:restore]VirtualMachineRestore Tests", func() {
 				Entry("to a new VM", true),
 			)
 
-			DescribeTable("should restore a vm that boots from a PVC", func(restoreToNewVM bool) {
+			DescribeTable("[test_id:restorefail4]should restore a vm that boots from a PVC", func(restoreToNewVM bool) {
+				imageUrl := cd.DataVolumeImportUrlForContainerDisk(cd.ContainerDiskFedoraTestTooling)
 				dv := libdv.NewDataVolume(
 					libdv.WithName("restore-pvc-"+rand.String(12)),
-					libdv.WithRegistryURLSourceAndPullMethod(cd.DataVolumeImportUrlForContainerDisk(cd.ContainerDiskFedoraTestTooling), cdiv1.RegistryPullNode),
-					libdv.WithStorage(libdv.StorageWithStorageClass(snapshotStorageClass)),
+					libdv.WithRegistryURLSourceAndPullMethod(imageUrl, cdiv1.RegistryPullNode),
+					libdv.WithStorage(
+						libdv.StorageWithStorageClass(snapshotStorageClass),
+						libdv.StorageWithVolumeSize(cd.FedoraVolumeSize),
+					),
 				)
 
 				_, err = virtClient.CdiClient().CdiV1beta1().DataVolumes(testsuite.GetTestNamespace(nil)).Create(context.Background(), dv, metav1.CreateOptions{})
@@ -1292,7 +1298,7 @@ var _ = SIGDescribe("[test_id:restore]VirtualMachineRestore Tests", func() {
 
 				vm, vmi = createAndStartVM(vm)
 
-				doRestore("/dev/vdc", console.LoginToFedora, offlineSnaphot, getTargetVMName(restoreToNewVM, newVmName))
+				doRestore("/dev/vdb", console.LoginToFedora, offlineSnaphot, getTargetVMName(restoreToNewVM, newVmName))
 				Expect(restore.Status.Restores).To(HaveLen(1))
 
 				if restoreToNewVM {
@@ -1599,7 +1605,7 @@ var _ = SIGDescribe("[test_id:restore]VirtualMachineRestore Tests", func() {
 				Expect(foundTempHotPlug).To(BeFalse())
 			},
 				Entry("[test_id:7425] to the same VM", false),
-				Entry("to a new VM", true),
+				Entry("[test_id:restorefailvamsi] to a new VM", true),
 			)
 
 			Context("with memory dump", func() {
@@ -1704,7 +1710,10 @@ var _ = SIGDescribe("[test_id:restore]VirtualMachineRestore Tests", func() {
 
 					source := libdv.NewDataVolume(
 						libdv.WithRegistryURLSourceAndPullMethod(cd.DataVolumeImportUrlForContainerDisk(cd.ContainerDiskFedoraTestTooling), cdiv1.RegistryPullNode),
-						libdv.WithStorage(libdv.StorageWithStorageClass(sourceSC)),
+						libdv.WithStorage(
+							libdv.StorageWithStorageClass(sourceSC),
+							libdv.StorageWithVolumeSize(cd.FedoraVolumeSize),
+						),
 						libdv.WithForceBindAnnotation(),
 					)
 					source, err = virtClient.CdiClient().CdiV1beta1().DataVolumes(testsuite.NamespaceTestAlternative).Create(context.Background(), source, metav1.CreateOptions{})
@@ -1767,7 +1776,7 @@ var _ = SIGDescribe("[test_id:restore]VirtualMachineRestore Tests", func() {
 					// TODO: consider ensuring network clone gets done here using StorageProfile CloneStrategy
 					dataVolume := libdv.NewDataVolume(
 						libdv.WithPVCSource(sourceDV.Namespace, sourceDV.Name),
-						libdv.WithStorage(libdv.StorageWithStorageClass(snapshotStorageClass), libdv.StorageWithVolumeSize("1Gi")),
+						libdv.WithStorage(libdv.StorageWithStorageClass(snapshotStorageClass), libdv.StorageWithVolumeSize("6Gi")),
 					)
 
 					return libvmi.NewVirtualMachine(
@@ -1797,15 +1806,15 @@ var _ = SIGDescribe("[test_id:restore]VirtualMachineRestore Tests", func() {
 					doRestore("", console.LoginToFedora, offlineSnaphot, getTargetVMName(restoreToNewVM, newVmName))
 					checkCloneAnnotations(getTargetVM(restoreToNewVM), false)
 				},
-					Entry("to the same VM", false, false, false),
-					Entry("to a new VM", true, false, false),
-					Entry("to the same VM, no source pvc", false, true, false),
-					Entry("to a new VM, no source pvc", true, true, false),
-					Entry("to the same VM, no source namespace", false, false, true),
-					Entry("to a new VM, no source namespace", true, false, true),
+					Entry("[test_id:network_clone]to the same VM", false, false, false),
+					Entry("[test_id:network_clone2]to a new VM", true, false, false),
+					Entry("[test_id:network_clone3]to the same VM, no source pvc", false, true, false),
+					Entry("[test_id:network_clone4]to a new VM, no source pvc", true, true, false),
+					Entry("[test_id:network_clone5]to the same VM, no source namespace", false, false, true),
+					Entry("[test_id:network_clone6]to a new VM, no source namespace", true, false, true),
 				)
 
-				DescribeTable("should restore a vm that boots from a network cloned datavolume (not template)", func(restoreToNewVM, deleteSourcePVC bool) {
+				DescribeTable("[test_id:network_clone7]should restore a vm that boots from a network cloned datavolume (not template)", func(restoreToNewVM, deleteSourcePVC bool) {
 					vm = createNetworkCloneVMFromSource()
 					dv := orphanDataVolumeTemplate(vm, 0)
 
