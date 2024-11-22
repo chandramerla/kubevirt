@@ -185,7 +185,7 @@ var _ = Describe("[Serial][sig-operator]Operator", Serial, decorators.SigOperato
 		}
 
 		ensureShasums = func() {
-			flags.SkipShasumCheck = true
+
 			if flags.SkipShasumCheck {
 				log.Log.Warning("Cannot use shasums, skipping")
 				return
